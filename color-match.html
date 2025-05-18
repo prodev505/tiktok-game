@@ -1,0 +1,121 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Match Frenzy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 flex items-center justify-center h-screen">
+  <div id="gameContainer" class="text-center">
+    <h1 class="text-4xl font-bold text-white mb-4">Color Match Frenzy</h1>
+    <p id="targetColor" class="text-2xl text-white mb-4">Couleur : ???</p>
+    <p id="score" class="text-2xl text-white mb-4">Score: 0</p>
+    <p id="timer" class="text-xl text-white mb-4">Temps: 30s</p>
+    <div id="grid" class="grid grid-cols-3 gap-2 mb-4"></div>
+    <button id="startButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Démarrer</button>
+  </div>
+
+  <script>
+    const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500'];
+    const colorNames = ['Rouge', 'Bleu', 'Vert', 'Jaune'];
+    const grid = document.getElementById('grid');
+    const targetColorDisplay = document.getElementById('targetColor');
+    const scoreDisplay = document.getElementById('score');
+    const timerDisplay = document.getElementById('timer');
+    const startButton = document.getElementById('startButton');
+    let score = 0;
+    let timeLeft = 30;
+    let gameActive = false;
+    let targetColorIndex;
+
+    function generateGrid() {
+      grid.innerHTML = '';
+      targetColorIndex = Math.floor(Math.random() * colors.length);
+      targetColorDisplay.textContent = `Couleur : ${colorNames[targetColorIndex]}`;
+      const shuffledColors = [...colors].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < 6; i++) {
+        const tile = document.createElement('div');
+        tile.className = `w-20 h-20 ${shuffledColors[i % colors.length]} rounded cursor-pointer`;
+        tile.addEventListener('click', () => checkTile(tile));
+        grid.appendChild(tile);
+      }
+    }
+
+    function checkTile(tile) {
+      if (!gameActive) return;
+      if (tile.classList.contains(colors[targetColorIndex])) {
+        score++;
+        scoreDisplay.textContent = `Score: ${score}`;
+        generateGrid();
+      } else {
+        score = Math.max(0, score - 1);
+        scoreDisplay.textContent = `Score: ${score}`;
+      }
+    }
+
+    function startGame() {
+      score = 0;
+      timeLeft = 30;
+      gameActive = true;
+      scoreDisplay.textContent = `Score: ${score}`;
+      timerDisplay.textContent = `Temps: ${timeLeft}s`;
+      startButton.style.display = 'none';
+      generateGrid();
+
+      const timer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = `Temps: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          gameActive = false;
+          grid.innerHTML = '';
+          alert(`Jeu terminé ! Score final: ${score}`);
+          startButton.style.display = 'block';
+        }
+      }, 1000);
+    }
+
+    startButton.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
